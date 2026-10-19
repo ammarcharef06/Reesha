@@ -3,56 +3,72 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#fff4d6">
+  <meta name="theme-color" content="#123241">
   <meta name="description" content="رِيشة: منهج تفاعلي لتعلّم الإنجليزية من الصفر، مناسب من عمر ٧ سنوات فأكثر، ويتكيف مع أخطاء المتعلم وإتقانه محلياً.">
   <title>رِيشة — منهج الإنجليزية من الصفر</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/img/feather.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./assets/css/app.css">
+  <link rel="stylesheet" href="./assets/css/enterprise.css">
 </head>
 <body>
-  <a class="skip-link" href="#main">اذهب إلى الدرس</a>
-  <header class="topbar">
-    <a class="brand" href="#home" data-page="home" aria-label="رِيشة، البداية">
-      <span class="brand-mark" aria-hidden="true">🪶</span>
-      <span><b>رِيشة</b><small>حديقة الكلمة الأولى</small></span>
-    </a>
-    <div class="top-controls">
-      <label for="learnerProfile">ملفي</label>
-      <select id="learnerProfile" aria-label="اختر ملف المتعلم"></select>
-      <label for="learnerMode">شكل القراءة</label>
-      <select id="learnerMode" aria-label="اختر شكل الواجهة">
-        <option value="child">ألوان مرحة</option>
-        <option value="elder">خط كبير وهادئ</option>
-      </select>
-    </div>
-  </header>
-
-  <nav class="main-nav" aria-label="أقسام ريشة">
-    <button type="button" class="nav-item is-active" data-page="home" aria-current="page">🏡 البداية</button>
-    <button type="button" class="nav-item" data-page="learn">🌱 حديقة الدروس</button>
-    <button type="button" class="nav-item nav-camera" data-page="camera">📷 عدسة ريشة</button>
-    <button type="button" class="nav-item" data-page="paper">✏️ ورقتي وقلمي</button>
-    <button type="button" class="nav-item" data-page="care">🛡️ للأهل والمرافقين</button>
-  </nav>
-
+  <a class="skip-link" href="#main">انتقل إلى المحتوى</a>
+  <div class="site-shell">
+    <aside class="app-sidebar" aria-label="التنقل في ريشة">
+      <a class="brand" href="#home" data-page="home" aria-label="ريشة، لوحة التعلم">
+        <span class="brand-mark" aria-hidden="true">ر</span>
+        <span><b>رِيشة</b><small>مختبر اللغة العربية والإنجليزية</small></span>
+      </a>
+      <div class="sidebar-caption">مساحة التعلم</div>
+      <nav class="main-nav" aria-label="أقسام ريشة">
+        <button type="button" class="nav-item is-active" data-page="home" aria-current="page"><span aria-hidden="true">⌂</span> لوحة التعلم</button>
+        <button type="button" class="nav-item" data-page="learn"><span aria-hidden="true">▤</span> المنهج والدروس</button>
+        <button type="button" class="nav-item nav-camera" data-page="camera"><span aria-hidden="true">◉</span> ريشة الحيّة</button>
+        <button type="button" class="nav-item" data-page="paper"><span aria-hidden="true">▧</span> دفتر التدريب</button>
+        <button type="button" class="nav-item" data-page="care"><span aria-hidden="true">♡</span> الأمان والإعدادات</button>
+      </nav>
+      <div class="sidebar-divider"></div>
+      <section class="sidebar-learner" aria-labelledby="profileHeading">
+        <h2 id="profileHeading">ملف المتعلم</h2>
+        <label for="learnerProfile">اختر ملفاً على هذا الجهاز</label>
+        <select id="learnerProfile" aria-label="اختر ملف المتعلم"></select>
+        <label for="learnerMode">حجم القراءة</label>
+        <select id="learnerMode" aria-label="اختر حجم الواجهة">
+          <option value="child">واجهة مريحة</option>
+          <option value="elder">خط كبير وهادئ</option>
+        </select>
+      </section>
+      <div class="sidebar-bottom">
+        <div class="local-badge"><span></span><div><b>تعلّمك محفوظ محلياً</b><small>على هذا المتصفح فقط</small></div></div>
+        <button type="button" class="sidebar-help" data-page="care">معلومات الخصوصية وإمكانية الوصول</button>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-heading"><span class="topbar-overline">منصة ريشة التعليمية</span><strong>مساحة تعلمك الشخصية</strong></div>
+        <div class="top-controls">
+          <span id="liveBadge" class="live-badge" role="status"><i></i> الجلسة متوقفة</span>
+          <button type="button" class="button top-live-button" data-start-session>ابدأ جلسة ريشة الحيّة</button>
+        </div>
+      </header>
   <main id="main" class="main-wrap">
     <section class="page is-visible" data-view="home" aria-labelledby="homeTitle">
       <div class="hero">
         <div class="hero-copy">
-          <p class="kicker">من أول صوت… قبل أن تعرف الحروف · مناسب من ٧ سنوات فأكثر</p>
-          <h1 id="homeTitle">كل ما حولك<br><span>قد يصبح كلمة.</span></h1>
-          <p class="hero-lead">ريشة صديقة التعلّم: تلتقط كلمة مطبوعة أو تتعرّف إلى أشياء مألوفة، ثم تتحدث معك بالعربية والإنجليزية. تعلّم صغير كل يوم، بلا استعجال.</p>
+          <p class="kicker">منصة ثنائية اللغة · من عمر ٧ سنوات فأكثر</p>
+          <h1 id="homeTitle">تعلّم الإنجليزية<br><span>بخطوات واضحة وواثقة.</span></h1>
+          <p class="hero-lead">منهج تأسيسي يتدرج من الأصوات والحروف إلى القراءة والجمل. ريشة تجمع الدرس، والمحادثة، وما تراه الكاميرا في مساحة تعليمية واحدة.</p>
           <div class="hero-actions">
-            <button type="button" class="button primary" data-page="learn">ابدأ مغامرة صغيرة <span aria-hidden="true">←</span></button>
-            <button type="button" class="button white" data-page="camera">تحدث مع ريشة</button>
+            <button type="button" class="button primary" data-page="learn">استكشف المنهج <span aria-hidden="true">←</span></button>
+            <button type="button" class="button white" data-start-session>ابدأ جلسة ريشة الحيّة</button>
           </div>
-          <p class="trust-note">🔒 لا حساب ولا اسم حقيقي مطلوب. التقدم محفوظ في هذا المتصفح؛ والكاميرا والميكروفون لا يعملان إلا بعد اختيارك.</p>
+          <div class="hero-trust"><span aria-hidden="true">✓</span><p><b>خصوصيتك أولاً</b><br>لا حساب مطلوب. لا تفتح الكاميرا أو الميكروفون إلا بعد بدء جلسة بإذنك.</p></div>
         </div>
-        <div class="hero-garden" aria-hidden="true">
-          <div class="sun"></div><div class="garden-book">📖</div>
-          <div class="bird">🐦<span>Hello!</span></div>
-          <div class="sprout">🌱</div><span class="word-float word-one">cat</span><span class="word-float word-two">قِطّة</span>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="visual-orbit orbit-one"></div><div class="visual-orbit orbit-two"></div>
+          <div class="visual-core"><span class="visual-mark">ر</span><small>LEARN · SPEAK · DISCOVER</small></div>
+          <span class="visual-token token-one">Hello</span><span class="visual-token token-two">مرحباً</span>
+          <span class="visual-token token-three">A–Z</span><span class="visual-token token-four">العربية ↔ English</span>
         </div>
       </div>
 
@@ -89,55 +105,67 @@
     </section>
 
     <section class="page" data-view="camera" aria-labelledby="cameraTitle" hidden>
-      <div class="section-title"><div><p class="kicker">ريشة تكتشف معك</p><h1 id="cameraTitle">عدسة ريشة الناطقة</h1><p>تعرّف إلى أشياء شائعة أو اقرأ كلمة مطبوعة. اسأل بالعربية أو الإنجليزية بعد تفعيل الاستماع.</p></div><span class="title-sticker" aria-hidden="true">🐦</span></div>
+      <div class="section-title live-section-title"><div><p class="kicker">التعلم بالصوت والرؤية في جلسة واحدة</p><h1 id="cameraTitle">مختبر ريشة الحيّة</h1><p>تكلّم مع ريشة بالعربية أو الإنجليزية، ووجّه العدسة إلى غرض أو نص. تستخدم ريشة ما تسمعه وما تتعرف إليه لتقديم شرح تعليمي.</p></div><span class="live-title-mark" aria-hidden="true">R<span>·</span></span></div>
 
-      <div class="camera-layout">
-        <section class="camera-panel" aria-labelledby="liveTitle">
-          <div class="camera-head"><div><h2 id="liveTitle">نافذة العالم</h2><p class="soft-text">الفيديو يُحلل داخل المتصفح. لا نطلب الميكروفون مع الكاميرا.</p></div><span class="privacy-chip">🔐 لا نحفظ الصورة</span></div>
+      <section class="live-commandbar" aria-label="التحكم بالجلسة الحية">
+        <div class="live-command-copy"><span class="live-command-dot"></span><div><b>جلسة موحّدة</b><small>الصوت والكاميرا والتحليل يعملون معاً بعد إذنك</small></div></div>
+        <div class="live-command-actions">
+          <button type="button" id="startLiveSession" class="button primary">ابدأ جلسة ريشة</button>
+          <button type="button" id="stopCamera" class="button danger" disabled>أوقف الجلسة</button>
+        </div>
+      </section>
+
+      <div class="camera-layout live-layout">
+        <section class="camera-panel live-camera-panel" aria-labelledby="liveTitle">
+          <div class="camera-head"><div><span class="panel-overline">الرؤية الحيّة</span><h2 id="liveTitle">ما تراه العدسة</h2><p id="cameraStatus" class="soft-text" role="status" aria-live="polite">ابدأ الجلسة لتفعيل العدسة والميكروفون بإذن واحد من ريشة.</p></div><span class="privacy-chip"><i></i> المعالجة على جهازك</span></div>
           <div class="video-stage">
-            <video id="cameraVideo" playsinline muted aria-label="معاينة الكاميرا"></video>
+            <video id="cameraVideo" playsinline muted aria-label="عرض الكاميرا الحية"></video>
             <canvas id="objectOverlay" aria-hidden="true"></canvas>
-            <div id="cameraEmpty" class="camera-empty"><span>📷</span><b>العدسة نائمة</b><small>افتحها بإذن شخص بالغ.</small></div>
+            <div id="cameraEmpty" class="camera-empty"><span class="camera-empty-symbol">◉</span><b>المختبر جاهز</b><small>ستبقى الكاميرا متوقفة حتى تبدأ الجلسة.</small></div>
             <div class="aim-frame" aria-hidden="true"><i></i></div>
+            <div class="video-live-indicator"><i></i><span id="visionState">متوقف</span></div>
+            <div id="visionLoading" class="vision-loading" hidden><span class="spinner"></span><b id="visionLoadingLabel">تهيئة التحليل</b><small id="visionLoadingDetail">قد يستغرق التحميل الأول بعض الوقت.</small></div>
           </div>
-          <div class="camera-controls">
-            <button type="button" id="openCamera" class="button primary">افتح الكاميرا</button>
-            <button type="button" id="startScan" class="button light" disabled>ابدأ الاكتشاف الحي</button>
-            <button type="button" id="switchCamera" class="button quiet" disabled aria-label="بدّل بين الكاميرتين">🔄</button>
-            <button type="button" id="stopCamera" class="button danger" hidden>أوقف الكاميرا</button>
+          <div class="camera-controls live-camera-controls">
+            <button type="button" id="switchCamera" class="button quiet" disabled>بدّل العدسة</button>
+            <button type="button" id="torchToggle" class="button quiet" hidden aria-pressed="false">الإضاءة</button>
+            <label class="zoom-control" for="cameraZoom">التقريب <input id="cameraZoom" type="range" min="1" max="1" value="1" step="0.1" disabled></label>
+            <button type="button" id="chooseImage" class="button quiet upload-image">حلّل صورة من الجهاز</button>
           </div>
-          <div class="camera-modes" role="group" aria-label="اختر ما تبحث عنه"><button type="button" class="is-selected" data-scan-mode="objects" aria-pressed="true">🧸 أشياء حولي</button><button type="button" data-scan-mode="text" aria-pressed="false">🔤 كلمات مطبوعة</button></div>
-          <label class="narrate-option"><input id="narrateFindings" type="checkbox"><span>اقرأ ما اكتشفته ريشة بصوتٍ عالٍ</span></label>
-          <p id="cameraStatus" class="status-line" role="status" aria-live="polite">اختَر وضعاً، ثم افتح الكاميرا. يمكنك أيضاً رفع صورة ورقة.</p>
+          <div class="camera-modes" role="group" aria-label="ما الذي تحلله الكاميرا؟">
+            <button type="button" data-scan-mode="both" class="is-selected" aria-pressed="true">المشهد والنص</button>
+            <button type="button" data-scan-mode="objects" aria-pressed="false">الأشياء</button>
+            <button type="button" data-scan-mode="text" aria-pressed="false">الكلمات المطبوعة</button>
+          </div>
+          <div class="vision-context" aria-live="polite"><span class="context-label">سياق ريشة الآن</span><p id="sceneSummary">لم تكتشف ريشة شيئاً بعد.</p><label class="narrate-option"><input id="narrateFindings" type="checkbox"><span>اقرأ الاكتشاف بصوت ريشة</span></label></div>
           <input id="paperImage" type="file" accept="image/*" capture="environment" hidden>
           <canvas id="ocrCanvas" class="sr-only"></canvas>
-          <button type="button" id="chooseImage" class="button quiet upload-image">🖼️ اختر صورة من الجهاز</button>
         </section>
 
-        <section class="companion-panel" aria-labelledby="companionTitle">
-          <div class="companion-head"><span class="companion-face" aria-hidden="true">🐦</span><div><h2 id="companionTitle">أنا ريشة</h2><p class="soft-text">أستطيع أن أشرح ما أعرفه، وأقول لك عندما لا أعرفه.</p></div></div>
-          <div id="chatLog" class="chat-log" role="log" aria-live="polite" aria-relevant="additions text"><p class="chat-bubble guide">أهلاً! قل «ريشة» أو “Reesha” ثم اسألني عن كلمة، أو اكتبها في بطاقة الاكتشاف. 🌼</p></div>
-          <div class="quick-asks" aria-label="اسأل ريشة"><button type="button" data-ask="meaning">ماذا تعني؟</button><button type="button" data-ask="spell">كيف أكتبها؟</button><button type="button" data-ask="example">مثال بسيط</button><button type="button" data-ask="slow">قوليها ببطء</button></div>
-          <div class="mic-area">
-            <label class="consent-line"><input id="voiceConsent" type="checkbox"><span>أوافق على تفعيل الميكروفون الآن. قد يرسل المتصفح الصوت إلى خدمة للتعرّف عليه؛ لن أذكر اسمي أو عنواني. إذا كنت طفلاً، أطلب موافقة شخص بالغ.</span></label>
-            <label class="field-label" for="speechLanguage">لغة ما ستقوله لريشة</label><select id="speechLanguage" class="speech-language" aria-label="لغة التعرف الصوتي"><option value="ar-SA">العربية</option><option value="en-US">English (US)</option></select>
-            <div class="mic-row"><button type="button" id="toggleListening" class="button voice">🎙️ ابدأ الاستماع لندائي</button><span id="voiceStatus" class="soft-text small">الاستماع متوقف.</span></div>
-            <p class="small soft-text">اختر لغة كلامك، ثم ابدأ الاستماع ونادِ «ريشة» أو “Reesha”. يعمل التعرّف على الكلام بلغة واحدة في كل مرة بحسب المتصفح؛ والإيقاف متاح في أي وقت.</p>
+        <section class="companion-panel live-companion-panel" aria-labelledby="companionTitle">
+          <div class="companion-head"><span class="companion-face" aria-hidden="true">ر</span><div><span class="panel-overline">المعلّمة المساعدة</span><h2 id="companionTitle">أنا ريشة</h2><p id="voiceStatus" class="soft-text" role="status" aria-live="polite">الجلسة متوقفة. ابدأها لتستمع ريشة إلى كلمة النداء.</p></div></div>
+          <div class="companion-controls">
+            <button type="button" id="toggleWakeWord" class="wake-toggle" aria-pressed="true" disabled><span class="wake-icon">◌</span><span><b>كلمة النداء</b><small>«ريشة» أو “Reesha”</small></span><i id="wakeIndicator"></i></button>
+            <button type="button" id="toggleListening" class="button push-to-talk" disabled aria-pressed="false">اضغط هنا لتتحدث</button>
           </div>
-          <label class="speed-control" for="speechRate">سرعة الكلام <span id="speedLabel">هادئة</span><input id="speechRate" type="range" min="0.65" max="1.1" value="0.82" step="0.05"></label>
+          <div class="voice-model-status" aria-live="polite"><div class="model-status-row"><span id="modelStatusIcon">◉</span><div><b id="modelStatusTitle">بانتظار بدء الجلسة</b><small id="modelStatusText">يُحمّل نموذج الصوت على هذا الجهاز عند بدء أول جلسة.</small></div><span id="detectedLanguage" class="language-badge">AR · EN</span></div><progress id="voiceModelProgress" max="100" value="0" hidden></progress></div>
+          <div class="audio-meter" aria-hidden="true"><span id="audioMeterFill"></span></div>
+          <div id="chatLog" class="chat-log" role="log" aria-live="polite" aria-relevant="additions text"><p class="chat-bubble guide">أهلاً، أنا ريشة. ابدأ الجلسة، ثم نادني بالعربية أو الإنجليزية، أو استخدم زر التحدث.</p></div>
+          <div class="quick-asks" aria-label="أسئلة سريعة لريشة"><button type="button" data-ask="meaning">ماذا تعني؟</button><button type="button" data-ask="spell">كيف أكتبها؟</button><button type="button" data-ask="example">أعطني مثالاً</button><button type="button" data-ask="slow">انطقها ببطء</button></div>
+          <form id="chatInputForm" class="chat-input-form"><label class="sr-only" for="chatQuestion">اكتب سؤالاً لريشة</label><input id="chatQuestion" maxlength="180" dir="auto" placeholder="اكتب بالعربية أو الإنجليزية…"><button type="submit" aria-label="أرسل السؤال">إرسال</button></form>
+          <label class="speed-control" for="speechRate">سرعة الصوت <span id="speedLabel">هادئة</span><input id="speechRate" type="range" min="0.65" max="1.1" value="0.82" step="0.05"></label>
         </section>
       </div>
 
       <section class="discovery-panel" aria-labelledby="discoveryTitle">
-        <div class="discovery-head"><div><p class="kicker">نراجع ما التقطته العدسة</p><h2 id="discoveryTitle">ماذا وجدت؟</h2></div><div class="direction-switch" role="group" aria-label="اتجاه التعلّم"><button type="button" class="is-selected" data-direction="en-ar" aria-pressed="true">English ← أشرح بالعربية</button><button type="button" data-direction="ar-en" aria-pressed="false">العربية ← أشرح بالإنجليزية</button></div></div>
-        <label for="recognizedText" class="field-label">النص المقروء — صحّح أخطاء الكاميرا قبل الشرح:</label>
+        <div class="discovery-head"><div><p class="kicker">مراجعة بصرية تعليمية</p><h2 id="discoveryTitle">تدقيق النص والترجمة</h2></div><div class="direction-switch" role="group" aria-label="اتجاه التعلّم"><button type="button" class="is-selected" data-direction="en-ar" aria-pressed="true">English ← العربية</button><button type="button" data-direction="ar-en" aria-pressed="false">العربية ← English</button></div></div>
+        <label for="recognizedText" class="field-label">النص الذي التقطته العدسة — راجعه قبل تسجيل أي خطأ:</label>
         <textarea id="recognizedText" rows="2" maxlength="600" dir="auto" placeholder="مثال: cat أو قطة"></textarea>
         <div class="button-row"><button type="button" id="analyzeText" class="button primary">اشرح الكلمة أو النص</button><button type="button" id="clearDiscovery" class="button quiet">امسح البطاقة</button></div>
-        <p class="small soft-text">ريشة تتعرف إلى مجموعة محددة من الأشياء والصور المطبوعة. الخط اليدوي والصور المعتمة قد تخطئ؛ لا نعتبر خطأ القراءة خطأ الطفل.</p>
+        <p class="small soft-text">تتعرف ريشة إلى فئات محددة من الأشياء، وتقرأ النص المطبوع بالعربية والإنجليزية. راجع النتيجة؛ لا يُسجّل خطأ إملائي على المتعلم دون تأكيده.</p>
         <div id="wordCards" class="word-cards" aria-live="polite"></div>
       </section>
     </section>
-
     <section class="page" data-view="paper" aria-labelledby="paperTitle" hidden>
       <div class="section-title"><div><p class="kicker">نكتب ونرسم ونتذكر</p><h1 id="paperTitle">دفتر ريشة</h1><p>الورقة والقلم جزء من التعلم. اطبع نشاطاً، اكتب بيدك، ثم صوّر الصفحة إن أحببت مراجعة كلمة مطبوعة.</p></div><span class="title-sticker" aria-hidden="true">✏️</span></div>
       <div class="paper-layout">
@@ -151,10 +179,10 @@
       <div class="section-title"><div><p class="kicker">معاً يتعلم الأطفال بأمان</p><h1 id="careTitle">دليل الأهل والمرافقين</h1><p>رِيشة مساحة للمبتدئين جداً من الأطفال، ومهيأة أيضاً لكبار السن الذين يساعدونهم أو يتعلمون معهم.</p></div><span class="title-sticker" aria-hidden="true">🌼</span></div>
       <div class="care-grid">
         <article class="care-card"><span>📷</span><h2>الرؤية ليست سحراً</h2><p>وضع الأشياء يستخدم نموذجاً يتعرف إلى مجموعة شائعة ومحدودة من ٨٠ فئة. لا يعرّف كل غرض، ولا يسمي الأشخاص أو يقرأ المشهد كاملاً. وضع النص يعتمد OCR للكلمات المطبوعة.</p></article>
-        <article class="care-card"><span>🗣️</span><h2>الصوت بإذنكم</h2><p>الكاميرا تطلب الفيديو فقط. الميكروفون منفصل، لا يبدأ إلا بعد الموافقة والضغط على الزر. بعض المتصفحات قد ترسل الصوت إلى خدمة تعرّف خارجية.</p></article>
+        <article class="care-card"><span>🗣️</span><h2>جلسة حيّة بإذنكم</h2><p>تبدأ الكاميرا والميكروفون معاً بعد اختيار بدء الجلسة والموافقة. يحلل نموذج Whisper الصوت داخل جهازك؛ لا يحفظ الموقع التسجيلات ولا يرسلها للتعرّف. قد يعرض المتصفح إذنين منفصلين، ويحتفظ بقراره حتى تغيّره من إعدادات الموقع.</p></article>
         <article class="care-card"><span>🧠</span><h2>شرح صادق</h2><p>قاموس ريشة وأنماط المحادثة مخصصة لكلمات البداية. إذا لم تعرف الإجابة، تقول ذلك ولا تخترع ترجمة. ليست بديلاً عن معلّم أو معالج نطق.</p></article>
         <article class="care-card"><span>✍️</span><h2>الخط اليدوي</h2><p>الماسح أنسب للطباعة الواضحة. قد يخطئ في خط الطفل أو الخط المتصل أو العربي المشكول؛ نستخدم الاقتراح للتدريب لا للحكم على الطفل.</p></article>
-        <article class="care-card"><span>🌐</span><h2>الإنترنت والخصوصية</h2><p>تُحلل الصور داخل الجهاز ولا يحفظها هذا الموقع. عند أول استعمال تُحمّل مكتبات ونماذج OCR والرؤية من CDN. لا توجد حسابات ولا تحليلات ولا ملفات صوت داخلية.</p></article>
+        <article class="care-card"><span>🌐</span><h2>الإنترنت والخصوصية</h2><p>تُحلل الصور والصوت على الجهاز ولا يحفظها هذا الموقع. تُحمّل مكونات التعرف والنماذج العامة عند الحاجة؛ وقد يحتاج نموذج Whisper إلى مئات الميغابايت في أول استخدام. لا توجد حسابات ولا ملفات صوت مضمّنة.</p></article>
         <article class="care-card"><span>👓</span><h2>واجهة مريحة</h2><p>اختر الخط الكبير والهدوء عند التعلم مع كبير السن. الأصوات وسرعتها من جهازك، ويمكن الاستفادة من قارئ الشاشة وتكبير الصفحة.</p></article>
       </div>
       <section class="profile-tools" aria-labelledby="profileToolsTitle"><div><h2 id="profileToolsTitle">ملفات المتعلمين على هذا الجهاز</h2><p>لكل شخص سجل مستقل للأخطاء والتعليم والإتقان. أنشئ ملفاً لكل فرد من الأسرة أو الأصدقاء؛ لا تحتاج إلى حساب. نزّل ملفاً لنقله يدوياً إلى جهاز آخر.</p></div><div class="button-row"><button type="button" id="addLearnerProfile" class="button quiet">أضف ملف متعلم</button><button type="button" id="exportProfile" class="button primary">نزّل ملف المتعلم الحالي</button><button type="button" id="importProfileButton" class="button light">استعد ملفاً من جهاز آخر</button><button type="button" id="clearProfile" class="button danger">امسح تقدم المتعلم الحالي</button><button type="button" id="deleteLearnerProfile" class="button danger">احذف ملف المتعلم الحالي</button><input type="file" id="importProfileFile" accept="application/json,.json" hidden></div><p id="profileToolsStatus" class="small soft-text" role="status"></p></section>
@@ -163,13 +191,15 @@
     </section>
   </main>
 
-  <dialog id="cameraConsentDialog" class="modal" aria-labelledby="cameraConsentTitle">
-    <form method="dialog" class="modal-content"><button type="submit" class="modal-close" aria-label="إغلاق">×</button><span class="modal-icon">🛡️</span><h2 id="cameraConsentTitle">قبل أن تفتح ريشة عينيها</h2><ul><li>الكاميرا لا تبدأ إلا الآن وبإذن المتصفح.</li><li>نطلب الفيديو فقط، من دون الميكروفون.</li><li>لا نرسل الفيديو إلى موقعنا ولا نحفظه.</li><li>إذا كنت طفلاً، اطلب وجود شخص بالغ. لا توجّه العدسة إلى الوجوه أو المعلومات الخاصة.</li></ul><label class="consent-line strong"><input id="cameraConsent" type="checkbox"><span>فهمت، ومعي شخص بالغ إذا كنت طفلاً.</span></label><div class="button-row"><button type="button" id="confirmCamera" class="button primary" disabled>أوافق، افتح الكاميرا</button><button type="submit" class="button light">ليس الآن</button></div></form>
+  <dialog id="liveConsentDialog" class="modal" aria-labelledby="liveConsentTitle">
+    <form method="dialog" class="modal-content live-consent-content"><button type="submit" class="modal-close" aria-label="إغلاق">×</button><span class="modal-icon">◉</span><p class="kicker">موافقة المرة الأولى</p><h2 id="liveConsentTitle">ابدأ جلسة آمنة مع ريشة</h2><p>عند المتابعة سيطلب المتصفح الوصول إلى الكاميرا والميكروفون. نطلبهما معاً كي تعمل الرؤية والمحادثة كجلسة واحدة؛ وقد يعرض جهازك نافذتي إذن منفصلتين.</p><ul><li>الصوت والصور تُحلّل داخل هذا الجهاز ولا تُحفَظ أو تُرسل إلى خدمة تعرّف.</li><li>أول مرة، ينزّل المتصفح نموذج Whisper متعدد اللغات؛ يحتاج إلى اتصال وقد يستغرق تنزيله بضع دقائق.</li><li>يمكنك إيقاف الصوت والكاميرا فوراً بزر واحد. وتظل الأذونات تحت تحكم إعدادات المتصفح.</li></ul><label class="consent-line strong"><input id="liveConsentCheck" type="checkbox"><span>أفهم استخدام الصوت والصورة. إذا كان المتعلم طفلاً، فهناك شخص بالغ معه.</span></label><p id="liveConsentStatus" class="consent-status" role="status" aria-live="polite"></p><div class="button-row"><button type="button" id="confirmLiveStart" class="button primary" disabled>متابعة وبدء الجلسة</button><button type="submit" class="button light">ليس الآن</button></div></form>
   </dialog>
   <dialog id="lessonDialog" class="modal lesson-modal" aria-labelledby="lessonDialogTitle"><div id="lessonDialogContent"></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <footer class="footer"><span>رِيشة · نتعلم كلمةً كلمةً 🌱</span><button type="button" data-page="care">الأمان ومعلومات الاستخدام</button></footer>
+  <footer class="footer"><span>رِيشة · منصة تأسيس عربية–إنجليزية</span><button type="button" data-page="care">الأمان وإمكانية الوصول</button><span>كل ملف تعلّم محفوظ محلياً</span></footer>
   <div id="printArea" class="print-area" aria-hidden="true"></div>
+    </div>
+  </div>
   <script type="module" src="./assets/js/app.js"></script>
 </body>
 </html>

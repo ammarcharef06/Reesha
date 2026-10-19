@@ -1,5 +1,5 @@
-const CACHE='reesha-shell-v1';
-const SHELL=['./','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/js/app.js','./assets/js/lessons.js','./assets/js/lexicon.js','./assets/js/mastery.js','./assets/img/feather.svg'];
+const CACHE='reesha-shell-v2';
+const SHELL=['./','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/enterprise.css','./assets/js/app.js','./assets/js/live-speech.js','./assets/js/speech-worker.js','./assets/js/lessons.js','./assets/js/lexicon.js','./assets/js/mastery.js','./assets/img/feather.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));

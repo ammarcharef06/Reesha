@@ -1,11 +1,12 @@
 import {units,lessons,curriculumStats} from './lessons.js';
 import {entries,objectLabels,explainText,lookup,lookupPhrase,suggest,answerQuestion,normalize,tokenize} from './lexicon.js';
 import {getProfile,getLearners,getActiveLearnerId,hasPersistentStorage,setLearnerMode,selectLearner,createLearner,removeActiveLearner,recordAttempt,markLessonCompleted,markLessonOpened,lessonMastery,lessonCompleted,recommendLesson,getLearningSummary,exportProfile,importProfile,clearProfile,isAnswerCorrect} from './mastery.js';
+import {LiveSpeech} from './live-speech.js';
 
 const $=(selector,root=document)=>root.querySelector(selector);
 const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 const number=value=>new Intl.NumberFormat('ar').format(value);
-const state={page:'home',unit:'for-you',lesson:null,scanMode:'objects',direction:'en-ar',stream:null,facing:'environment',model:null,detectTimer:null,detecting:false,lastNarrated:'',worker:null,ocrBusy:false,recognition:null,listening:false,armed:false,speaking:false,toastTimer:null};
+const state={page:'home',unit:'for-you',lesson:null,scanMode:'both',direction:'en-ar',stream:null,sessionActive:false,facing:'environment',model:null,modelPromise:null,detectTimer:null,detecting:false,visionBusy:false,visionTurn:'objects',lastNarrated:'',worker:null,workerPromise:null,ocrBusy:false,speech:null,speechReady:false,listening:false,armed:false,speaking:false,speechToken:0,manualText:false,objectEntries:[],ocrEntries:[],ocrText:'',contextEntries:[],toastTimer:null};
 const byId=id=>document.getElementById(id);
 const modeSelect=byId('learnerMode');
 const profileSelect=byId('learnerProfile');
@@ -224,9 +225,10 @@ function deleteCurrentProfile() {
 // Browser-native speech only; no audio assets are bundled with the site.
 function speak(text,{resumeListening=true}={}) {
   if(!('speechSynthesis'in window)||!text)return;
+  const speechToken=++state.speechToken;
   window.speechSynthesis.cancel();
-  const wasListening=state.listening&&resumeListening;
-  if(wasListening&&state.recognition) {state.speaking=true;try{state.recognition.stop();}catch{}}
+  const shouldResume=state.sessionActive&&resumeListening;
+  if(shouldResume&&state.speech) {state.speaking=true;state.speech.pause();}
   const segments=String(text).match(/[\u0600-\u06FF][\u0600-\u06FF\sًٌٍَُِّْـ.,!?،؛؟-]*|[A-Za-z][A-Za-z'’\s.,!?-]*/g)||[String(text)];
   const parts=segments.map(part=>part.trim()).filter(Boolean);
   if(!parts.length)return;
@@ -238,8 +240,8 @@ function speak(text,{resumeListening=true}={}) {
     const voices=window.speechSynthesis.getVoices();
     const voice=arabic?voices.find(item=>item.lang.toLowerCase().startsWith('ar')):voices.find(item=>item.lang.toLowerCase().startsWith('en-us'));
     if(voice)utterance.voice=voice;
-    utterance.onend=()=>{if(index===parts.length-1){state.speaking=false;if(wasListening&&state.listening&&!document.hidden)setTimeout(startRecognition,300);}};
-    utterance.onerror=()=>{if(index===parts.length-1){state.speaking=false;if(wasListening&&state.listening&&!document.hidden)setTimeout(startRecognition,500);}};
+    utterance.onend=()=>{if(index===parts.length-1&&speechToken===state.speechToken){state.speaking=false;if(shouldResume&&state.sessionActive&&!document.hidden)setTimeout(()=>{if(speechToken===state.speechToken)state.speech?.resume();},350);}};
+    utterance.onerror=()=>{if(index===parts.length-1&&speechToken===state.speechToken){state.speaking=false;if(shouldResume&&state.sessionActive&&!document.hidden)setTimeout(()=>{if(speechToken===state.speechToken)state.speech?.resume();},500);}};
     window.speechSynthesis.speak(utterance);
   });
 }
@@ -247,190 +249,293 @@ function addChat(text,kind='guide') {
   const bubble=document.createElement('p');bubble.className=`chat-bubble ${kind}`;bubble.textContent=text;
   byId('chatLog').append(bubble);byId('chatLog').scrollTop=byId('chatLog').scrollHeight;
 }
-function latestFocusEntries() {return explainText(byId('recognizedText').value).filter(row=>row.known);}
+function latestFocusEntries() {
+  const typed=explainText(byId('recognizedText').value).filter(row=>row.known);
+  const unique=new Map();
+  [...state.contextEntries,...typed].forEach(row=>unique.set(normalize(row.en||row.token||''),row));
+  return [...unique.values()];
+}
 function respondToQuestion(question) {
+  if(!question?.trim())return;
   const response=answerQuestion(question,latestFocusEntries());
   addChat(response,'guide');speak(response);
 }
-function configureSpeech() {
-  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!Recognition) {
-    byId('toggleListening').disabled=true;byId('voiceStatus').textContent='التعرف على الكلام غير متاح في هذا المتصفح؛ يمكنك استخدام الصوت المنطوق والكتابة.';return;
-  }
-  state.recognition=new Recognition();state.recognition.lang=byId('speechLanguage').value||'ar-SA';state.recognition.continuous=true;state.recognition.interimResults=false;state.recognition.maxAlternatives=1;
-  state.recognition.onresult=event=>{
-    const result=event.results[event.results.length-1];if(!result?.isFinal)return;
-    const transcript=result[0]?.transcript?.trim();if(!transcript)return;
-    const language=detectScript(transcript);state.recognition.lang=language==='ar'?'ar-SA':'en-US';byId('speechLanguage').value=state.recognition.lang;
-    if(!state.armed) {
-      if(/\b(?:reesha|risha|resha)\b|ريشة/i.test(transcript)) {
-        const question=transcript.replace(/\b(?:reesha|risha|resha)\b|ريشة/ig,'').replace(/^[,،:؛\s]+/,'').trim();
-        if(question){state.armed=false;addChat(question,'user');respondToQuestion(question);}
-        else {state.armed=true;addChat('نعم، أنا أسمعك. اسألني عن كلمة أو عبارة قصيرة.','guide');speak('نعم، أنا أسمعك. اسألني عن كلمة أو عبارة قصيرة.');}
-      }
-      return;
-    }
-    state.armed=false;addChat(transcript,'user');
-    if(/\b(?:reesha|risha|resha)\b|ريشة/i.test(transcript)) {
-      const question=transcript.replace(/\b(?:reesha|risha|resha)\b|ريشة/ig,'').trim();
-      if(question)respondToQuestion(question);else {state.armed=true;addChat('تفضل، قل سؤالك بالعربية أو الإنجليزية.','guide');speak('تفضل، قل سؤالك بالعربية أو الإنجليزية.');}
-    } else respondToQuestion(transcript);
-  };
-  state.recognition.onerror=event=>{if(event.error==='not-allowed'||event.error==='service-not-allowed'){state.listening=false;updateListeningButton();byId('voiceStatus').textContent='لم يسمح المتصفح بالميكروفون.';}};
-  state.recognition.onend=()=>{if(state.listening&&!state.speaking&&!document.hidden)setTimeout(startRecognition,450);};
-}
 function detectScript(text) {return /[\u0600-\u06FF]/.test(text)?'ar':'en';}
-function startRecognition() {
-  if(!state.listening||!state.recognition||state.speaking)return;
-  try{state.recognition.start();}catch{}
-}
 function updateListeningButton() {
-  const button=byId('toggleListening');button.classList.toggle('is-listening',state.listening);
-  button.textContent=state.listening?'⏹️ أوقف الاستماع':'🎙️ ابدأ الاستماع لندائي';
-  byId('voiceStatus').textContent=state.listening?(state.armed?'ريشة استيقظت؛ قل سؤالك.':'ريشة تنتظر اسمها…'):'الاستماع متوقف.';
+  const button=byId('toggleListening');
+  if(!button)return;
+  button.classList.toggle('is-listening',state.listening);
+  button.setAttribute('aria-pressed',String(state.listening));
+  button.textContent=state.listening?'أرسل عبارتي':'اضغط هنا لتتحدث';
 }
 function toggleListening() {
-  if(state.listening){stopListening();return;}
-  if(!byId('voiceConsent').checked){notify('وافق على استخدام الميكروفون أولاً.');return;}
-  if(!state.recognition){configureSpeech();if(!state.recognition)return;}
-  state.listening=true;state.armed=false;updateListeningButton();startRecognition();
+  if(!state.sessionActive||!state.speechReady||!state.speech)return;
+  if(state.listening) {state.speech.stopPushToTalk();state.listening=false;updateListeningButton();return;}
+  if(state.speech.startPushToTalk()){state.listening=true;state.armed=false;updateListeningButton();}
 }
 function stopListening() {
-  if(!state.listening)return;
-  state.listening=false;state.armed=false;state.speaking=false;
-  try{state.recognition?.stop();}catch{}
+  state.listening=false;state.armed=false;
+  if(state.speech?.pushRecording)state.speech.stopPushToTalk();
   updateListeningButton();
+}
+
+function setSpeechStatus(event={}) {
+  const title=byId('modelStatusTitle'),detail=byId('modelStatusText'),progress=byId('voiceModelProgress'),button=byId('toggleListening'),wake=byId('toggleWakeWord');
+  const labels={loading:'تجهيز نموذج التعرّف',ready:'التعرّف المحلي جاهز',recording:'ريشة تستمع لعبارتك',transcribing:'ريشة تفهم العبارة',paused:'كلمة النداء متوقفة',stopped:'الجلسة متوقفة',error:'تعذر تجهيز الصوت'};
+  if(title)title.textContent=labels[event.state]||'التعرّف المحلي';
+  if(detail&&event.message)detail.textContent=event.message;
+  if(progress){progress.hidden=event.state!=='loading'||!Number.isFinite(event.progress);if(Number.isFinite(event.progress))progress.value=Math.max(0,Math.min(100,event.progress));}
+  if(event.state==='ready')state.speechReady=true;
+  if(event.state==='error')state.speechReady=false;
+  if(event.state!=='recording'&&state.listening){state.listening=false;updateListeningButton();}
+  if(button)button.disabled=!state.sessionActive||!state.speechReady;
+  if(wake)wake.disabled=!state.sessionActive||!state.speechReady;
+  const status=byId('voiceStatus');
+  if(status&&event.message)status.textContent=event.message;
+}
+
+function handleTranscript({text,source}) {
+  const transcript=String(text||'').trim();if(!transcript)return;
+  const language=detectScript(transcript);
+  byId('detectedLanguage').textContent=language==='ar'?'العربية':'EN · English';
+  if(source==='push') {state.armed=false;addChat(transcript,'user');respondToQuestion(transcript);return;}
+  const wakePattern=/\b(?:hey\s+)?(?:reesha|risha|resha)\b|(?:يا\s*)?ريشة/ig;
+  if(state.armed) {
+    state.armed=false;addChat(transcript,'user');respondToQuestion(transcript);return;
+  }
+  if(!wakePattern.test(transcript))return;
+  const question=transcript.replace(wakePattern,'').replace(/^[,،:؛\s]+/,'').trim();
+  state.armed=!question;
+  if(question){addChat(question,'user');respondToQuestion(question);}
+  else {const greeting='نعم، أنا أسمعك. اسألني عن كلمة أو عبارة قصيرة بالعربية أو الإنجليزية.';addChat(greeting,'guide');speak(greeting);}
+}
+
+function createSpeechEngine() {
+  if(state.speech)return state.speech;
+  state.speech=new LiveSpeech({onTranscript:handleTranscript,onStatus:setSpeechStatus,onLevel:value=>{const fill=byId('audioMeterFill');if(fill)fill.style.width=`${Math.round(value*100)}%`;}});
+  return state.speech;
 }
 
 function appendScript(src,id) {
   return new Promise((resolve,reject)=>{
-    if(document.getElementById(id)){resolve();return;}
+    const previous=document.getElementById(id);
+    if(previous?.dataset.loaded==='true'){resolve();return;}
+    previous?.remove();
     const script=document.createElement('script');script.src=src;script.id=id;script.async=true;
-    script.onload=resolve;script.onerror=()=>reject(new Error('تعذر تحميل مكتبة التحليل. تحقق من الاتصال ثم حاول ثانية.'));
+    script.onload=()=>{script.dataset.loaded='true';resolve();};script.onerror=()=>{script.remove();reject(new Error('تعذر تحميل مكتبة التحليل. تحقق من الاتصال ثم حاول ثانية.'));};
     document.head.append(script);
   });
 }
 async function loadObjectModel() {
   if(state.model)return state.model;
-  byId('cameraStatus').textContent='نحمّل نموذج الأشياء إلى جهازك. قد يحتاج أول تحميل إلى اتصال بالإنترنت.';
-  await appendScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js','tensorflow-runtime');
-  await appendScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js','coco-ssd-model');
-  state.model=await window.cocoSsd.load();return state.model;
+  if(state.modelPromise)return state.modelPromise;
+  state.modelPromise=(async()=>{
+    setVisionLoading('تحميل نموذج الأشياء','يُحمّل النموذج إلى هذا الجهاز عند أول استعمال.');
+    await appendScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js','tensorflow-runtime');
+    await appendScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js','coco-ssd-model');
+    state.model=await window.cocoSsd.load();return state.model;
+  })();
+  try{return await state.modelPromise;}finally{state.modelPromise=null;}
 }
 async function loadOcrWorker() {
   if(state.worker)return state.worker;
-  byId('cameraStatus').textContent='نحمّل قارئ النص العربي والإنجليزي إلى جهازك؛ قد يستغرق أول تحميل وقتاً.';
-  await appendScript('https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js','tesseract-runtime');
-  state.worker=await window.Tesseract.createWorker('eng+ara',1,{logger:message=>{if(message.status==='recognizing text')byId('cameraStatus').textContent=`نقرأ النص المطبوع… ${number(Math.round((message.progress||0)*100))}٪`;}});
-  return state.worker;
+  if(state.workerPromise)return state.workerPromise;
+  state.workerPromise=(async()=>{
+    setVisionLoading('تحميل قارئ العربية والإنجليزية','تحميل ملفات القراءة يتم عند أول استعمال.');
+    await appendScript('https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js','tesseract-runtime');
+    state.worker=await window.Tesseract.createWorker('eng+ara',1,{logger:message=>{if(message.status==='recognizing text')setVisionLoading('قراءة النص المطبوع',`تقدم القراءة ${number(Math.round((message.progress||0)*100))}٪`);}});
+    return state.worker;
+  })();
+  try{return await state.workerPromise;}finally{state.workerPromise=null;}
 }
-function requestCamera() {
-  if(!navigator.mediaDevices?.getUserMedia){byId('cameraStatus').textContent='يحتاج المتصفح إلى اتصال HTTPS حديث لدعم الكاميرا.';return;}
-  byId('cameraConsent').checked=false;byId('confirmCamera').disabled=true;byId('cameraConsentDialog').showModal();
+function setVisionLoading(title,detail) {
+  const box=byId('visionLoading');if(!box)return;
+  box.hidden=false;byId('visionLoadingLabel').textContent=title;byId('visionLoadingDetail').textContent=detail;
 }
-async function openCamera() {
-  byId('confirmCamera').disabled=true;
+function hideVisionLoading(){if(byId('visionLoading'))byId('visionLoading').hidden=true;}
+
+function requestLiveSession() {
+  switchPage('camera');
+  if(state.sessionActive)return;
+  const dialog=byId('liveConsentDialog');
+  let consentSaved=false;try{consentSaved=localStorage.getItem('reesha-live-consent-v1')==='yes';}catch{}
+  if(consentSaved){startLiveSession();return;}
+  byId('liveConsentCheck').checked=false;byId('confirmLiveStart').disabled=true;
+  byId('liveConsentStatus').textContent='';
+  if(!dialog.open)dialog.showModal();
+}
+let sessionStarting=false;
+async function startLiveSession() {
+  if(sessionStarting||state.sessionActive)return;
+  if(!navigator.mediaDevices?.getUserMedia){const message='يحتاج تشغيل الكاميرا والميكروفون إلى HTTPS ومتصفح حديث.';byId('cameraStatus').textContent=message;byId('liveConsentStatus').textContent=message;return;}
+  sessionStarting=true;
+  const startButtons=$$('[data-start-session]');startButtons.forEach(button=>button.disabled=true);
+  byId('confirmLiveStart').disabled=true;
+  byId('cameraStatus').textContent='نطلب إذني الكاميرا والميكروفون معاً من المتصفح…';
+  const consentDialogWasOpen=byId('liveConsentDialog').open;
   try {
-    state.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:state.facing},width:{ideal:1280},height:{ideal:720}}});
-    byId('cameraVideo').srcObject=state.stream;await byId('cameraVideo').play();
-    byId('cameraEmpty').hidden=true;byId('openCamera').hidden=true;byId('startScan').disabled=false;byId('stopCamera').hidden=false;byId('switchCamera').disabled=false;
-    $('.camera-panel').classList.add('is-open');byId('cameraConsentDialog').close();
-    byId('cameraStatus').textContent='الكاميرا مفتوحة. ابدأ الاكتشاف عندما تكون مستعداً.';
+    const stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
+      video:{facingMode:{ideal:state.facing},width:{ideal:1280},height:{ideal:720}}
+    });
+    if(state.page!=='camera'||document.hidden||(consentDialogWasOpen&&!byId('liveConsentDialog').open)){stream.getTracks().forEach(track=>track.stop());return;}
+    state.stream=stream;state.sessionActive=true;
+    try{localStorage.setItem('reesha-live-consent-v1','yes');}catch{}
+    if(byId('liveConsentDialog').open)byId('liveConsentDialog').close();
+    byId('cameraVideo').srcObject=stream;await byId('cameraVideo').play();
+    byId('cameraEmpty').hidden=true;byId('startLiveSession').disabled=true;byId('stopCamera').disabled=false;byId('switchCamera').disabled=false;
+    $('.camera-panel').classList.add('is-open');
+    byId('visionState').textContent='تحليل حي';byId('liveBadge').innerHTML='<i></i> الجلسة نشطة';byId('liveBadge').classList.add('is-live');
+    setCameraCapabilities();
+    byId('cameraStatus').textContent='الجلسة نشطة. أوجّه العدسة إلى غرض أو نص، أو أنادي «ريشة»؛ ويمكنني استخدام زر التحدث.';
+    byId('voiceStatus').textContent='يجري تهيئة الاستماع المحلي. كلمة النداء وزر التحدث يعملان بعد جاهزية النموذج.';
+    setVisionLoading('تهيئة المختبر','تعمل الرؤية وقراءة النص والصوت داخل هذا الجهاز.');
+    createSpeechEngine().start(stream).then(()=>{
+      if(state.sessionActive){state.speechReady=true;byId('toggleWakeWord').disabled=false;byId('toggleListening').disabled=false;const wakeEnabled=byId('toggleWakeWord').getAttribute('aria-pressed')==='true';byId('wakeIndicator').classList.toggle('is-on',wakeEnabled);state.speech.setWakeEnabled(wakeEnabled);}
+    }).catch(error=>{
+      if(!state.sessionActive)return;
+      stream.getAudioTracks().forEach(track=>track.stop());
+      state.speech?.shutdown();state.speech=null;
+      state.speechReady=false;setSpeechStatus({state:'error',message:error.message||'تعذر بدء الصوت المحلي. يمكنك استخدام الكتابة والعدسة.'});
+    });
+    startScanning();
   } catch(error) {
-    byId('cameraStatus').textContent=error.name==='NotAllowedError'?'لم يسمح المتصفح بالكاميرا. يمكنك متابعة الدروس أو اختيار صورة من جهازك.':'تعذر فتح الكاميرا؛ تحقق من الإذن واتصال HTTPS.';
-    byId('cameraConsentDialog').close();
+    const message=error.name==='NotAllowedError'?'لم يسمح المتصفح بإذن الكاميرا أو الميكروفون. راجع أذونات الموقع ثم أعد المحاولة.':error.name==='NotFoundError'?'لم نعثر على كاميرا أو ميكروفون متاحين في هذا الجهاز.':'تعذر بدء الجلسة. تحقق من توصيل الكاميرا والميكروفون وإعدادات المتصفح.';
+    if(state.sessionActive)stopCamera();
+    byId('cameraStatus').textContent=message;
+    byId('liveConsentStatus').textContent=message;
+  } finally {
+    sessionStarting=false;startButtons.forEach(button=>button.disabled=false);
+    if(byId('liveConsentDialog').open)byId('confirmLiveStart').disabled=!byId('liveConsentCheck').checked;
   }
 }
-function closeCameraDialog(event) {event.preventDefault();byId('cameraConsentDialog').close();}
 function setScanMode(mode) {
-  stopScanning();state.scanMode=mode;
+  state.scanMode=mode;state.visionTurn='objects';
   $$('[data-scan-mode]').forEach(button=>{const active=button.dataset.scanMode===mode;button.classList.toggle('is-selected',active);button.setAttribute('aria-pressed',String(active));});
-  byId('startScan').textContent=mode==='objects'?'ابدأ اكتشاف الأشياء':'ابدأ قراءة النص';
-  byId('cameraStatus').textContent=mode==='objects'?'وجّه العدسة إلى غرض مألوف؛ لا توجّهها إلى شخص.':'وجّه العدسة إلى كلمات مطبوعة واضحة، ثم راجع ما قرأه الماسح.';
+  if(state.sessionActive)startScanning();
+  else byId('cameraStatus').textContent=mode==='both'?'ستحلل الجلسة المشهد والنص بالتناوب.':'سيبدأ هذا النوع من التحليل عند تشغيل الجلسة.';
 }
-async function startScanning() {
-  if(!state.stream)return;
-  stopScanning();state.detecting=true;byId('startScan').disabled=true;
+function setCameraCapabilities() {
+  const track=state.stream?.getVideoTracks()[0],capabilities=track?.getCapabilities?.()||{};
+  const zoom=byId('cameraZoom'),torch=byId('torchToggle');
+  if(capabilities.zoom){zoom.min=String(capabilities.zoom.min);zoom.max=String(capabilities.zoom.max);zoom.step=String(capabilities.zoom.step||.1);zoom.value=String(capabilities.zoom.min);zoom.disabled=false;}else zoom.disabled=true;
+  torch.hidden=!capabilities.torch;torch.disabled=!capabilities.torch;torch.setAttribute('aria-pressed','false');
+}
+async function applyCameraZoom(value) {
+  const track=state.stream?.getVideoTracks()[0];if(!track)return;
+  try{await track.applyConstraints({advanced:[{zoom:Number(value)}]});}catch{byId('cameraStatus').textContent='التقريب غير مدعوم في هذه العدسة.';}
+}
+async function toggleTorch() {
+  const button=byId('torchToggle'),track=state.stream?.getVideoTracks()[0];if(!track)return;
+  const enabled=button.getAttribute('aria-pressed')!=='true';
+  try{await track.applyConstraints({advanced:[{torch:enabled}]});button.setAttribute('aria-pressed',String(enabled));}
+  catch{byId('cameraStatus').textContent='لا يمكن تغيير الإضاءة من هذه الكاميرا.';}
+}
+
+function startScanning() {
+  if(!state.stream||!state.sessionActive)return;
+  if(state.detectTimer)clearTimeout(state.detectTimer);
+  state.detecting=true;state.visionTurn='objects';byId('visionState').textContent='تحليل حي';
+  byId('cameraStatus').textContent='أبحث محلياً عن أشياء مألوفة ونص مطبوع. أراجع ما أراه قبل الاعتماد عليه.';
+  runVisionCycle();
+}
+async function runVisionCycle() {
+  if(!state.detecting||!state.sessionActive||state.visionBusy)return;
+  state.visionBusy=true;
+  const turn=state.scanMode==='both'?state.visionTurn:state.scanMode;
   try {
-    if(state.scanMode==='objects') {
-      const model=await loadObjectModel();
-      if(!state.stream||!state.detecting)return;
-      state.detectTimer=setInterval(()=>detectFrame(model),1400);
-      byId('cameraStatus').textContent='أبحث عن الأشياء الشائعة داخل متصفحك. قد لا أتعرف إلى كل غرض.';
-    } else {
-      const worker=await loadOcrWorker();
-      if(!state.stream||!state.detecting)return;
-      state.detectTimer=setInterval(()=>recognizeVideoFrame(worker),3500);
-      byId('cameraStatus').textContent='أقرأ النص المطبوع. ستظهر النتيجة لتراجعها قبل شرحها.';
-    }
-  } catch(error) {byId('cameraStatus').textContent=error.message||'تعذر تشغيل التحليل.';state.detecting=false;byId('startScan').disabled=false;}
+    if(turn==='objects')await detectFrame(await loadObjectModel());
+    else await recognizeVideoFrame(await loadOcrWorker());
+  } catch(error) {
+    hideVisionLoading();
+    if(state.sessionActive)byId('cameraStatus').textContent=error.message||'تعذر تشغيل هذا التحليل. تحقق من الاتصال ثم حاول مجدداً.';
+  } finally {
+    state.visionBusy=false;hideVisionLoading();
+    if(state.scanMode==='both')state.visionTurn=turn==='objects'?'text':'objects';
+    if(state.detecting)state.detectTimer=setTimeout(runVisionCycle,state.scanMode==='both'?650:1300);
+  }
 }
 function prepareOverlay() {
   const video=byId('cameraVideo'),canvas=byId('objectOverlay'),ratio=window.devicePixelRatio||1;
   const width=video.clientWidth,height=video.clientHeight;
-  if(!width||!height)return null;
+  if(!width||!height||!video.videoWidth||!video.videoHeight)return null;
   canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);
-  const context=canvas.getContext('2d');context.scale(ratio,ratio);return {context,width,height,videoWidth:video.videoWidth,videoHeight:video.videoHeight};
+  const context=canvas.getContext('2d');context.setTransform(ratio,0,0,ratio,0,0);return {context,width,height,videoWidth:video.videoWidth,videoHeight:video.videoHeight};
+}
+function updateLiveContext() {
+  state.contextEntries=[...(state.objectEntries||[]),...(state.ocrEntries||[])];
+  const labels=state.contextEntries.slice(0,5).map(row=>`${row.en}${row.ar?` · ${row.ar}`:''}`);
+  byId('sceneSummary').textContent=labels.length?labels.join('، '):'لم تكتشف ريشة شيئاً بعد. وجّه العدسة إلى غرض أو كلمة واضحة.';
+  if(!state.manualText&&document.activeElement!==byId('recognizedText')&&state.ocrText){
+    byId('recognizedText').value=state.ocrText||'';
+    renderDiscovery(explainText(state.ocrText));
+  } else if(!state.manualText)renderDiscovery(state.objectEntries||[]);
 }
 async function detectFrame(model) {
-  if(!state.detecting||state.scanMode!=='objects'||byId('cameraVideo').readyState<2)return;
-  if(state.ocrBusy)return;
-  state.ocrBusy=true;
-  try {
-    const predictions=await model.detect(byId('cameraVideo'));
-    const layout=prepareOverlay();if(!layout)return;
-    const {context,width,height,videoWidth,videoHeight}=layout;
-    context.clearRect(0,0,width,height);context.lineWidth=3;context.font='700 15px Segoe UI, sans-serif';
-    const scale=Math.max(width/videoWidth,height/videoHeight),offsetX=(width-videoWidth*scale)/2,offsetY=(height-videoHeight*scale)/2;
-    const visible=predictions.filter(row=>row.class!=='person'&&row.score>=.58).slice(0,8);
-    for(const row of visible) {
-      const [x,y,w,h]=row.bbox,px=x*scale+offsetX,py=y*scale+offsetY,pw=w*scale,ph=h*scale,label=objectLabels.get(row.class)||lookup(row.class)?.ar;
-      context.strokeStyle='#ffe36e';context.strokeRect(px,py,pw,ph);
-      const text=`${row.class}${label?` · ${label}`:''}`;context.fillStyle='#163a31';const textWidth=context.measureText(text).width+12;
-      context.fillRect(px,Math.max(0,py-24),textWidth,23);context.fillStyle='#fff';context.fillText(text,px+6,Math.max(16,py-7));
-    }
-    if(visible[0]) {
-      const top=visible[0],meaning=objectLabels.get(top.class)||lookup(top.class)?.ar||'غرض مألوف';
-      byId('recognizedText').value=top.class;renderDiscovery(explainText(top.class));
-      byId('cameraStatus').textContent=`أرى غالباً: ${top.class} (${number(Math.round(top.score*100))}٪). راجع الاسم والمعنى.`;
-      if(byId('narrateFindings').checked&&state.lastNarrated!==top.class){speak(`${top.class}. ${meaning}.`,{resumeListening:false});state.lastNarrated=top.class;}
-    }
-  } catch(error) {byId('cameraStatus').textContent='تعذر تحليل هذه الصورة. جرّب إضاءة أو زاوية أخرى.';}
-  finally {state.ocrBusy=false;}
+  const video=byId('cameraVideo');if(!state.detecting||video.readyState<2)return;
+  const predictions=await model.detect(video),layout=prepareOverlay();if(!layout)return;
+  const {context,width,height,videoWidth,videoHeight}=layout;
+  context.clearRect(0,0,width,height);context.lineWidth=2;context.font='700 14px Segoe UI, sans-serif';
+  const scale=Math.max(width/videoWidth,height/videoHeight),offsetX=(width-videoWidth*scale)/2,offsetY=(height-videoHeight*scale)/2;
+  const visible=predictions.filter(row=>row.class!=='person'&&row.score>=.58).slice(0,8);
+  for(const row of visible) {
+    const [x,y,w,h]=row.bbox,px=x*scale+offsetX,py=y*scale+offsetY,pw=w*scale,ph=h*scale,label=objectLabels.get(row.class)||lookup(row.class)?.ar;
+    context.strokeStyle='#56d4bb';context.strokeRect(px,py,pw,ph);
+    const text=`${row.class}${label?` · ${label}`:''}`;context.fillStyle='#123d42';const textWidth=context.measureText(text).width+12;
+    context.fillRect(px,Math.max(0,py-24),textWidth,23);context.fillStyle='#fff';context.fillText(text,px+6,Math.max(16,py-7));
+  }
+  state.objectEntries=visible.map(row=>({en:row.class,ar:objectLabels.get(row.class)||lookup(row.class)?.ar||'',known:true,score:row.score}));
+  updateLiveContext();
+  if(visible[0]) {
+    const top=visible[0],meaning=objectLabels.get(top.class)||lookup(top.class)?.ar||'غرض مألوف';
+    byId('cameraStatus').textContent=`تعرّفت إلى ${top.class} باحتمال ${number(Math.round(top.score*100))}٪. النتيجة تقريبية ويمكنك سؤال ريشة عنها.`;
+    if(byId('narrateFindings').checked&&state.lastNarrated!==top.class){speak(`${top.class}. ${meaning}.`);state.lastNarrated=top.class;}
+  }
 }
 async function recognizeVideoFrame(worker) {
-  const video=byId('cameraVideo'),canvas=byId('ocrCanvas');if(!state.detecting||state.ocrBusy||video.readyState<2)return;
-  state.ocrBusy=true;
-  try {
-    canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
-    const result=await worker.recognize(canvas),text=result.data.text.trim();
-    if(text){byId('recognizedText').value=text;byId('cameraStatus').textContent='راجع النص الذي قرأه الماسح، ثم اضغط «اشرح الكلمة أو النص». لا نحفظ صورة الإطار.';}
-  } catch {byId('cameraStatus').textContent='لم أقرأ النص بوضوح. قرّب الورقة وحسّن الإضاءة.';}
-  finally {state.ocrBusy=false;}
+  const video=byId('cameraVideo'),canvas=byId('ocrCanvas');if(!state.detecting||video.readyState<2)return;
+  const scale=Math.min(1,1280/video.videoWidth);canvas.width=Math.max(1,Math.round(video.videoWidth*scale));canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
+  canvas.getContext('2d',{willReadFrequently:true}).drawImage(video,0,0,canvas.width,canvas.height);
+  const result=await worker.recognize(canvas),text=String(result.data.text||'').trim();
+  if(text&&text!==state.ocrText) {
+    state.ocrText=text;state.ocrEntries=explainText(text).filter(row=>row.known);
+    if(!state.manualText&&document.activeElement!==byId('recognizedText'))byId('recognizedText').value=text;
+    updateLiveContext();
+    byId('cameraStatus').textContent='قرأت نصاً محتملاً. راجعه في بطاقة التدقيق قبل الاعتماد على الترجمة أو تسجيل تهجئة.';
+    if(byId('narrateFindings').checked&&state.lastNarrated!==`ocr:${text}`){const summary=state.ocrEntries.slice(0,4).map(row=>`${row.en}. ${row.ar}`).join('. ');if(summary)speak(summary);state.lastNarrated=`ocr:${text}`;}
+  }
 }
 function stopScanning() {
-  state.detecting=false;if(state.detectTimer)clearInterval(state.detectTimer);state.detectTimer=null;state.ocrBusy=false;
-  byId('startScan').disabled=!state.stream;
+  state.detecting=false;if(state.detectTimer)clearTimeout(state.detectTimer);state.detectTimer=null;
   const canvas=byId('objectOverlay');if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
 }
 function stopCamera() {
-  stopScanning();if(state.stream){state.stream.getTracks().forEach(track=>track.stop());state.stream=null;}
+  stopScanning();stopListening();state.sessionActive=false;state.speechReady=false;
+  state.speech?.shutdown();state.speech=null;state.speaking=false;
+  state.speechToken+=1;
+  if('speechSynthesis'in window)window.speechSynthesis.cancel();
+  if(state.stream){state.stream.getTracks().forEach(track=>track.stop());state.stream=null;}
+  state.objectEntries=[];state.ocrEntries=[];state.ocrText='';state.contextEntries=[];
   const video=byId('cameraVideo');if(video)video.srcObject=null;
-  if(byId('openCamera'))byId('openCamera').hidden=false;
-  if(byId('startScan'))byId('startScan').disabled=true;
-  if(byId('stopCamera'))byId('stopCamera').hidden=true;
-  if(byId('switchCamera'))byId('switchCamera').disabled=true;
-  if(byId('cameraEmpty'))byId('cameraEmpty').hidden=false;
-  $('.camera-panel')?.classList.remove('is-open');state.lastNarrated='';
-  if(byId('cameraStatus'))byId('cameraStatus').textContent='أوقفت ريشة الكاميرا.';
+  byId('startLiveSession').disabled=false;byId('stopCamera').disabled=true;byId('switchCamera').disabled=true;byId('cameraEmpty').hidden=false;
+  byId('toggleListening').disabled=true;byId('toggleWakeWord').disabled=true;updateListeningButton();
+  byId('visionState').textContent='متوقف';byId('liveBadge').innerHTML='<i></i> الجلسة متوقفة';byId('liveBadge').classList.remove('is-live');
+  byId('cameraZoom').disabled=true;byId('torchToggle').hidden=true;$('.camera-panel')?.classList.remove('is-open');state.lastNarrated='';
+  hideVisionLoading();byId('voiceStatus').textContent='الجلسة متوقفة. ابدأها لتستمع ريشة إلى كلمة النداء.';byId('sceneSummary').textContent='لم تكتشف ريشة شيئاً بعد.';
+  if(byId('cameraStatus'))byId('cameraStatus').textContent='أوقفت ريشة الجلسة؛ الكاميرا والميكروفون مغلقان.';
+  setSpeechStatus({state:'stopped',message:'توقفت الجلسة؛ الكاميرا والميكروفون مغلقان.'});
 }
 async function switchCamera() {
+  if(!state.stream||!state.sessionActive)return;
   state.facing=state.facing==='environment'?'user':'environment';
-  const wasScanning=state.detecting;stopCamera();
-  try {state.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:state.facing}}});
-    byId('cameraVideo').srcObject=state.stream;await byId('cameraVideo').play();byId('cameraEmpty').hidden=true;byId('openCamera').hidden=true;byId('startScan').disabled=false;byId('stopCamera').hidden=false;byId('switchCamera').disabled=false;$('.camera-panel').classList.add('is-open');
-    if(wasScanning)startScanning();
-  } catch {byId('cameraStatus').textContent='تعذر تبديل الكاميرا. افتحها مجدداً من الزر.';}
+  const oldVideo=state.stream.getVideoTracks()[0];
+  try {
+    const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:state.facing},width:{ideal:1280},height:{ideal:720}}});
+    const nextVideo=next.getVideoTracks()[0],audioTracks=state.stream.getAudioTracks();
+    state.stream=new MediaStream([...audioTracks,nextVideo]);oldVideo?.stop();
+    byId('cameraVideo').srcObject=state.stream;await byId('cameraVideo').play();setCameraCapabilities();
+    byId('cameraStatus').textContent='تم تبديل العدسة. يستمر الصوت والجلسة.';
+  } catch {state.facing=state.facing==='environment'?'user':'environment';byId('cameraStatus').textContent='تعذر تبديل الكاميرا؛ تستمر الجلسة بالعدسة الحالية.';}
 }
 function renderDiscovery(items) {
   const cards=items.slice(0,24).map(item=>{
@@ -471,12 +576,16 @@ function readUploadedImage(file) {
   image.onload=async()=>{
     const canvas=byId('ocrCanvas'),context=canvas.getContext('2d');
     const scale=Math.min(1,1800/image.width);canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);context.drawImage(image,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);
-    try {const worker=await loadOcrWorker(),result=await worker.recognize(canvas);byId('recognizedText').value=result.data.text.trim();byId('cameraStatus').textContent='راجِع النص المستخرج، ثم اطلب شرحه. لا تُحفظ الصورة.';if(byId('recognizedText').value)analyzeText();}
-    catch(error){byId('cameraStatus').textContent=error.message||'لم أستطع قراءة هذه الصورة.';}
+    try {const worker=await loadOcrWorker(),result=await worker.recognize(canvas);hideVisionLoading();byId('recognizedText').value=result.data.text.trim();state.manualText=true;byId('cameraStatus').textContent='راجِع النص المستخرج، ثم اطلب شرحه. لا تُحفظ الصورة.';if(byId('recognizedText').value)analyzeText();}
+    catch(error){hideVisionLoading();byId('cameraStatus').textContent=error.message||'لم أستطع قراءة هذه الصورة.';}
   };
   image.onerror=()=>{URL.revokeObjectURL(url);byId('cameraStatus').textContent='تعذر فتح الصورة.';};image.src=url;
 }
-function clearDiscovery() {byId('recognizedText').value='';byId('wordCards').innerHTML='';byId('objectOverlay').getContext('2d').clearRect(0,0,byId('objectOverlay').width,byId('objectOverlay').height);}
+function clearDiscovery() {
+  byId('recognizedText').value='';byId('wordCards').innerHTML='';state.manualText=false;state.ocrText='';state.ocrEntries=[];state.objectEntries=[];state.contextEntries=[];
+  byId('sceneSummary').textContent='لم تكتشف ريشة شيئاً بعد.';
+  byId('objectOverlay').getContext('2d').clearRect(0,0,byId('objectOverlay').width,byId('objectOverlay').height);
+}
 
 function printBlank() {
   byId('printArea').innerHTML='<article class="print-sheet"><header><b>🪶 ريشة · ورقة تدريب</b><span>المتعلم: _______________</span></header><h1>كلمتي اليوم</h1><p>أسمع الكلمة وأقولها وألاحظ معناها.</p><div class="large-example" dir="ltr">My new word</div><p><b>أكتب الكلمة أو أرسم معناها:</b></p><div class="print-lines"></div><p><b>أستطيع:</b> ☐ سماعها　☐ فهمها　☐ كتابتها</p><footer>التعلّم خطوة صغيرة تتكرر.</footer></article>';window.print();
@@ -484,6 +593,7 @@ function printBlank() {
 
 function setupEvents() {
   document.addEventListener('click',event=>{
+    if(event.target.closest('[data-start-session]')){requestLiveSession();return;}
     const page=event.target.closest('[data-page]');if(page){event.preventDefault();switchPage(page.dataset.page);return;}
     const open=event.target.closest('[data-open-lesson]');if(open){openLesson(open.dataset.openLesson);return;}
     const unit=event.target.closest('[data-unit]');if(unit){state.unit=unit.dataset.unit;renderLessons();return;}
@@ -501,25 +611,38 @@ function setupEvents() {
     const next=event.target.closest('[data-next-lesson]');if(next){openLesson(next.dataset.nextLesson);return;}
     if(event.target.closest('[data-print-lesson]')){printLesson(state.lesson?.lesson);return;}
   });
-  document.addEventListener('submit',event=>{if(event.target.id==='writeAnswerForm')submitWriting(event);});
+  document.addEventListener('submit',event=>{
+    if(event.target.id==='writeAnswerForm'){submitWriting(event);return;}
+    if(event.target.id==='chatInputForm'){
+      event.preventDefault();const input=byId('chatQuestion'),question=input.value.trim();if(!question)return;
+      input.value='';addChat(question,'user');respondToQuestion(question);
+    }
+  });
   modeSelect.addEventListener('change',()=>setReadingMode(modeSelect.value));
   profileSelect.addEventListener('change',()=>{selectLearner(profileSelect.value);stopCamera();stopListening();syncLearnerControls();renderProfile();});
   byId('startRecommended').addEventListener('click',()=>{const next=recommendLesson(lessons);if(next)openLesson(next.id);});
+  byId('startLiveSession').addEventListener('click',requestLiveSession);
   byId('toggleListening').addEventListener('click',toggleListening);
-  byId('speechLanguage').addEventListener('change',event=>{if(state.recognition)state.recognition.lang=event.target.value;});
-  byId('openCamera').addEventListener('click',requestCamera);
-  byId('cameraConsent').addEventListener('change',event=>byId('confirmCamera').disabled=!event.target.checked);
-  byId('confirmCamera').addEventListener('click',openCamera);
-  byId('cameraConsentDialog').addEventListener('cancel',()=>{byId('cameraConsent').checked=false;});
+  byId('toggleWakeWord').addEventListener('click',event=>{
+    const button=event.currentTarget,enabled=button.getAttribute('aria-pressed')!=='true';
+    button.setAttribute('aria-pressed',String(enabled));byId('wakeIndicator').classList.toggle('is-on',enabled);state.armed=false;
+    state.speech?.setWakeEnabled(enabled);
+  });
+  byId('liveConsentCheck').addEventListener('change',event=>{byId('confirmLiveStart').disabled=!event.target.checked;byId('liveConsentStatus').textContent='';});
+  byId('confirmLiveStart').addEventListener('click',startLiveSession);
+  byId('liveConsentDialog').addEventListener('cancel',()=>{byId('liveConsentCheck').checked=false;byId('liveConsentStatus').textContent='';});
   byId('stopCamera').addEventListener('click',stopCamera);
-  byId('startScan').addEventListener('click',startScanning);
   byId('switchCamera').addEventListener('click',switchCamera);
+  byId('torchToggle').addEventListener('click',toggleTorch);
+  byId('cameraZoom').addEventListener('input',event=>applyCameraZoom(event.target.value));
   $$('[data-scan-mode]').forEach(button=>button.addEventListener('click',()=>setScanMode(button.dataset.scanMode)));
   $$('[data-direction]').forEach(button=>button.addEventListener('click',()=>{state.direction=button.dataset.direction;$$('[data-direction]').forEach(item=>{const active=item===button;item.classList.toggle('is-selected',active);item.setAttribute('aria-pressed',String(active));});if(byId('recognizedText').value)renderDiscovery(explainText(byId('recognizedText').value));}));
   byId('chooseImage').addEventListener('click',()=>byId('paperImage').click());
   byId('paperImage').addEventListener('change',event=>readUploadedImage(event.target.files?.[0]));
   byId('analyzeText').addEventListener('click',analyzeText);
   byId('clearDiscovery').addEventListener('click',clearDiscovery);
+  byId('recognizedText').addEventListener('input',()=>{state.manualText=true;state.ocrEntries=explainText(byId('recognizedText').value).filter(row=>row.known);state.contextEntries=[...(state.objectEntries||[]),...state.ocrEntries];});
+  byId('narrateFindings').addEventListener('change',event=>{if(event.target.checked)state.lastNarrated='';});
   byId('speechRate').addEventListener('input',event=>{byId('speedLabel').textContent=Number(event.target.value)<.78?'بطيئة جداً':Number(event.target.value)>.98?'عادية':'هادئة';});
   byId('printBlank').addEventListener('click',printBlank);
   byId('exportProfile').addEventListener('click',downloadCurrentProfile);
@@ -528,8 +651,8 @@ function setupEvents() {
   byId('clearProfile').addEventListener('click',eraseCurrentProgress);
   byId('deleteLearnerProfile').addEventListener('click',deleteCurrentProfile);
   byId('addLearnerProfile').addEventListener('click',updateLearnerProfile);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopCamera();stopListening();}});
-  window.addEventListener('beforeunload',()=>{stopCamera();stopListening();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();});
+  window.addEventListener('beforeunload',stopCamera);
   window.addEventListener('hashchange',()=>switchPage(location.hash.slice(1)||'home'));
 }
 
@@ -537,8 +660,7 @@ function initialize() {
   syncLearnerControls();
   restorePracticedWordLessons();
   if(!hasPersistentStorage())byId('profilePrivacyNote').textContent='تعذر التخزين الدائم في هذا المتصفح. قد يضيع ملف التعلم عند إغلاق الصفحة؛ نزّل نسخة احتياطية من صفحة الأمان.';
-  configureSpeech();setupEvents();renderProfile();
-  byId('cameraConsentDialog').querySelector('form').addEventListener('submit',closeCameraDialog);
+  setupEvents();renderProfile();
   const page=location.hash.slice(1);switchPage(page||'home');
   if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
 }
