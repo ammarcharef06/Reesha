@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">ريشة</title>
+  <rect width="128" height="128" rx="34" fill="#f4c95d"/>
+  <path d="M96 22C76 26 49 42 38 61c-9 16-8 29-7 39 10 1 23 1 39-8 20-11 36-38 40-60 1-7-6-12-14-10Z" fill="#267d69" stroke="#155f52" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M31 100c16-19 33-35 55-53M43 85l-2-22m17 9 1-20m1 34 23 2m-11-15 20 1" fill="none" stroke="#fffaf1" stroke-linecap="round" stroke-width="5"/>
+  <path d="m27 104 7-18 12 11-19 7Z" fill="#e8755d"/>
+</svg>

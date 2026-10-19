@@ -1,0 +1,13 @@
+{
+  "name": "ريشة — أكاديمية الكلمة الأولى",
+  "short_name": "ريشة",
+  "description": "منهج تفاعلي عربي–إنجليزي يبدأ من الحروف والأصوات، مع مراجعة شخصية محلية.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fffaf1",
+  "theme_color": "#fff4d6",
+  "icons": [{"src":"./assets/img/feather.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
